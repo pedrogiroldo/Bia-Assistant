@@ -4,54 +4,21 @@ A **Beatriz (Bia)** é uma assistente virtual amigável e objetiva desenvolvida 
 
 ## 🚀 Funcionalidades
 
-* 
-**Gestão de Agenda:** Capacidade de criar, atualizar, cancelar e consultar o status de eventos no Google Calendar.
-
-
-* 
-**Processamento Multimodal:** Suporte completo para mensagens de texto e áudio (com transcrição via IA).
-
-
+* **Gestão de Agenda:** Capacidade de criar, atualizar, cancelar e consultar o status de eventos no Google Calendar.
+* **Processamento Multimodal:** Suporte completo para mensagens de texto e áudio (com transcrição via IA).
 * **Análise de Imagens:** Extração de compromissos a partir de capturas de tela de conversas.
-* 
-**Inteligência Artificial:** Utiliza o modelo **Gemini 2.5 Flash** para extração estruturada de dados (JSON) e interação cordial.
-
-
-* 
-**Resiliência e Erros:** Implementação de retries automáticos em caso de falha na IA e um workflow de erro dedicado para respostas amigáveis ao usuário.
-
-
-* 
-**Histórico e Logs:** Persistência completa de mensagens (inbound/outbound), logs de execução da IA e registros de erros no banco de dados.
-
-
-* 
-**Idempotência:** Garantia de que a mesma mensagem não processe ações duplicadas através da validação do `message_id`.
-
-
+* **Inteligência Artificial:** Utiliza o modelo **Gemini 2.5 Flash** para extração estruturada de dados (JSON) e interação cordial.
+* **Resiliência e Erros:** Implementação de retries automáticos em caso de falha na IA e um workflow de erro dedicado para respostas amigáveis ao usuário.
+* **Histórico e Logs:** Persistência completa de mensagens (inbound/outbound), logs de execução da IA e registros de erros no banco de dados.
+* **Idempotência:** Garantia de que a mesma mensagem não processe ações duplicadas através da validação do `message_id`.
 
 ## 🛠️ Stack Tecnológica
 
-* 
-**n8n:** Orquestrador do fluxo de automação.
-
-
-* 
-**Z-API:** Integração com a API do WhatsApp para recebimento e envio de mensagens.
-
-
-* 
-**Google Gemini 2.5 Flash:** Transcrição de áudio, análise de imagem e processamento de linguagem natural.
-
-
-* 
-**Google Calendar API:** Gerenciamento dos eventos de calendário.
-
-
-* 
-**Supabase (PostgreSQL):** Persistência de dados e logs.
-
-
+* **n8n:** Orquestrador do fluxo de automação.
+* **Z-API:** Integração com a API do WhatsApp para recebimento e envio de mensagens.
+* **Google Gemini 2.5 Flash:** Transcrição de áudio, análise de imagem e processamento de linguagem natural.
+* **Google Calendar API:** Gerenciamento dos eventos de calendário.
+* **Supabase (PostgreSQL):** Persistência de dados e logs.
 
 ## ⚙️ Configuração e Instalação
 
@@ -59,39 +26,18 @@ A **Beatriz (Bia)** é uma assistente virtual amigável e objetiva desenvolvida 
 
 Execute o conteúdo do arquivo `schema.sql` em seu editor SQL no Supabase (ou qualquer instância Postgres) para criar as tabelas e tipos necessários:
 
-* 
-`contacts`: Identificação de usuários.
-
-
-* 
-`calendar_events`: Registro de eventos sincronizados.
-
-
-* 
-`messages_logs`: Histórico de conversas.
-
-
-* 
-`llm_runs`: Rastreamento de chamadas ao Gemini.
-
-
-* 
-`errors`: Log de falhas técnicas.
-
-
+* `contacts`: Identificação de usuários.
+* `calendar_events`: Registro de eventos sincronizados.
+* `messages_logs`: Histórico de conversas.
+* `llm_runs`: Rastreamento de chamadas ao Gemini.
+* `errors`: Log de falhas técnicas.
 
 ### 2. Importação no n8n
 
 Importe os seguintes arquivos JSON na sua instância do n8n:
 
-* 
-`Bia - Main.json` (Workflow principal).
-
-
-* 
-`Bia - Error Workflow.json` (Workflow de tratamento de exceções).
-
-
+* `Bia - Main.json` (Workflow principal).
+* `Bia - Error Workflow.json` (Workflow de tratamento de exceções).
 
 ### 3. Credenciais Necessárias
 
