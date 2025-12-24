@@ -1,0 +1,2389 @@
+{
+  "name": "Bia - Main",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "return {allowed:true}\nif ($input.first().json.headers.origin !== \"https://api.z-api.io\") return {allowed: false}\nreturn {allowed: true}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        384,
+        -80
+      ],
+      "id": "ae9c3f2c-e2ed-400e-88a9-0cd2c7bfe445",
+      "name": "Verify if call is from z-api"
+    },
+    {
+      "parameters": {
+        "content": "## Verification\nThis first step verifies if the webhook call is from z-api."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        160,
+        -272
+      ],
+      "id": "559398cf-46a0-4471-bfaa-5ab9d01b69fb",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"message\": \"Origin not allowed\"\n}",
+        "options": {
+          "responseCode": 403
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1040,
+        128
+      ],
+      "id": "f667356d-6a74-41e1-b403-97a9622b5be2",
+      "name": "Respond to Webhook with error"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": true\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1040,
+        -320
+      ],
+      "id": "299a25bd-a823-47a6-8dff-134eaa0f572a",
+      "name": "Respond to Webhook with ok"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "zapi",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        -80
+      ],
+      "id": "846a0a4a-2dda-4ac2-9e4c-d242c66d706a",
+      "name": "Webhook z-api",
+      "webhookId": "3c0ddf0d-bb05-475c-ba7d-f4392a699333"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=# Entradas anteriores do usuário\n\n# Entrada do Usuário\nA seguir está a mensagem do usuário (texto ou transcrição de áudio):\n\"{{ $('Merge').item.json.user_message }}\"",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=# Role & Persona\nVocê é a Beatriz (Bia), uma secretária virtual amigável e objetiva. Sua função é gerenciar agendamentos no Google Calendar através de mensagens de texto ou transcrições de áudio.\n\n# Contexto Atual\n- Data e Hora atual: {{ $now.format('yyyy-MM-ddTHH:mm:ss') }} (America/Sao_Paulo)\n- Dia da semana: {{ $now.format('c') }} (1=Segunda, 7=Domingo)\n\n# Regras de Negócio (Time & Date) \n1. Timezone: Sempre use America/Sao_Paulo (-03:00).\n2. Janela de atendimento: Segunda a Sexta, 09:00 às 18:00.\n3. Duração padrão: 60 minutos se não especificado.\n4. Regra de Horário Relativo: Se o usuário disser apenas o horário (ex: \"18:00\") sem data:\n   - Se o horário for > (agora + 15 minutos): Agendar para HOJE.\n   - Caso contrário: Agendar para AMANHÃ.\n5. Se a solicitação cair fora do horário comercial ou em fim de semana, alerte no campo 'user_facing_message' e sugira horários, mas preencha o JSON com a intenção original.\n\n\n# Diretrizes de Preenchimento\n1. **Confidence**: Se a intenção do usuário não for clara (< 0.75), defina `needs_clarification: true` e faça uma pergunta em `clarification_question`.\n2. **Needs Confirmation**: Para ações 'create', 'update' e 'cancel', defina `needs_confirmation: true` a menos que o usuário esteja explicitamente confirmando uma ação anterior (\"Sim, pode marcar\").\n3. **User Facing Message**:\n   - Seja cordial.\n   - Confirme o que entendeu: \"Entendi, você quer marcar com [Pessoa] às [Hora]...\"\n   - Se for um erro ou falta de dados, explique claramente.\n\n# Eventos do usuário\nAqui estão os eventos do usuário:\n{{ $('Get user events').all().toJsonString() }}\n\n# Histórico de mensagens do usuário\nEstas são as últimas mensagens suas e do usuário. Use apenas o que considerar relevante, considerando as datas e os contextos em que foram enviadas.\n\n{{ $('Get raw paylod from messages').item.json.data.toJsonString() }}\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        7504,
+        -112
+      ],
+      "id": "703a708b-410e-4fcc-a0d7-85b8808c47dd",
+      "name": "AI Agent",
+      "notesInFlow": false,
+      "retryOnFail": true,
+      "waitBetweenTries": 1500,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\"action\": \"create|update|cancel|status|unknown\",\n\"confidence\": 0.0,\n\"event\": {\n\"title\": \"string|null\",\n\"with_person\": \"string|null\",\n\"start_datetime\": \"YYYY-MM-DDTHH:MM:SS-03:00|null\",\n\"end_datetime\": \"YYYY-MM-DDTHH:MM:SS-03:00|null\",\n\"duration_minutes\": 60,\n\"notes\": \"string|null\"\n},\n\"target\": {\n\"calendar_event_id\": \"string|null\",\n\"match_strategy\": \"last_confirmed|by_title|by_time|null\"\n},\n\"needs_clarification\": false,\n\"clarification_question\": \"string|null\",\n\"needs_confirmation\": true,\n\"user_facing_message\": \"string\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        7648,
+        112
+      ],
+      "id": "91eabd57-3f08-4634-9f97-6289dd428f04",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        7504,
+        112
+      ],
+      "id": "dd1295f3-2f83-420c-b32f-bf739798a0fc",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "664pCzbxJ2YDYmQp",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "messages_logs",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "message_whatsapp_id",
+              "keyValue": "={{ $('Webhook z-api').item.json.messageId }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1024,
+        -96
+      ],
+      "id": "6a3e3e79-3d62-4d3a-992a-119506a3c902",
+      "name": "Get message with same whatsapp message id on database",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "GppJw5cVMGqEWFjb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f1128fb8-f05b-435c-a501-fd55f8b2f6d4",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1232,
+        -96
+      ],
+      "id": "0a2ca45b-0234-462b-b705-8526ead7df67",
+      "name": "Verify if that message was handled before"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b00effdd-f6a1-4db3-ba87-a0863c243943",
+              "leftValue": "={{ $json.allowed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        688,
+        -80
+      ],
+      "id": "805cd463-eacd-4895-9972-35abeb0710db",
+      "name": "Decides if continue or return error"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "contacts",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "phone_number",
+              "keyValue": "={{ $('Webhook z-api').item.json.phone }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1504,
+        -80
+      ],
+      "id": "f59dc4ef-bcc0-4b34-8282-901163b76405",
+      "name": "Get sender contact",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "GppJw5cVMGqEWFjb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "contacts",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "phone_number",
+              "fieldValue": "={{ $('Webhook z-api').item.json.phone }}"
+            },
+            {
+              "fieldId": "name",
+              "fieldValue": "={{ $('Webhook z-api').item.json.senderName }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1984,
+        128
+      ],
+      "id": "fa2a0ec0-0954-407d-baf0-e27436a82211",
+      "name": "Create contact if it didn't exists",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "GppJw5cVMGqEWFjb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "36c10ea9-96a5-48be-80bf-ac3f8eaeac27",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1712,
+        -80
+      ],
+      "id": "f33f8a94-0bc6-4ece-a555-5485e788f2ad",
+      "name": "Verify if contact exists"
+    },
+    {
+      "parameters": {
+        "tableId": "messages_logs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "message_whatsapp_id",
+              "fieldValue": "={{ $('Webhook z-api').item.json.messageId }}"
+            },
+            {
+              "fieldId": "contact_id",
+              "fieldValue": "={{ $json.contact_id }}"
+            },
+            {
+              "fieldId": "text",
+              "fieldValue": "={{ $('Webhook z-api').item.json.text.message }}"
+            },
+            {
+              "fieldId": "raw_payload",
+              "fieldValue": "={{ $('Webhook z-api').item.json }}"
+            },
+            {
+              "fieldId": "type",
+              "fieldValue": "text"
+            },
+            {
+              "fieldId": "direction",
+              "fieldValue": "inbound"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3424,
+        -304
+      ],
+      "id": "987979de-d4cf-4caa-acc6-4dacbb98707c",
+      "name": "Add text message to database",
+      "credentials": {
+        "supabaseApi": {
+          "id": "GppJw5cVMGqEWFjb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "messages_logs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "message_whatsapp_id",
+              "fieldValue": "={{ $('Webhook z-api').item.json.messageId }}"
+            },
+            {
+              "fieldId": "contact_id",
+              "fieldValue": "={{ $('Add contact_id').item.json.contact_id }}"
+            },
+            {
+              "fieldId": "transcription",
+              "fieldValue": "={{ $json.content.parts[0].text }}"
+            },
+            {
+              "fieldId": "raw_payload",
+              "fieldValue": "={{ $('Webhook z-api').item.json }}"
+            },
+            {
+              "fieldId": "type",
+              "fieldValue": "audio"
+            },
+            {
+              "fieldId": "direction",
+              "fieldValue": "inbound"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3424,
+        -96
+      ],
+      "id": "fb0ae019-9235-4dda-a7bc-cc0269111c7a",
+      "name": "Add audio message to database",
+      "credentials": {
+        "supabaseApi": {
+          "id": "GppJw5cVMGqEWFjb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        5184,
+        112
+      ],
+      "id": "e9baeb09-e10e-474b-97a5-0a2bdcdc31f8",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "664pCzbxJ2YDYmQp",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "errorMessage": "Jailbreak verification failed"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        5776,
+        128
+      ],
+      "id": "058cf694-77e2-4388-a8ee-6f8ba37e3c05",
+      "name": "Jailbreak error"
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.user_message }}",
+        "guardrails": {
+          "jailbreak": {
+            "value": {
+              "threshold": 0.7
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.guardrails",
+      "typeVersion": 2,
+      "position": [
+        5248,
+        -80
+      ],
+      "id": "6210168b-b581-448c-a3d1-7fc29825a3f5",
+      "name": "Jailbreak Guardrails"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "inputType": "binary",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        3168,
+        -96
+      ],
+      "id": "be982806-8af1-428e-9b67-b87b8e292e82",
+      "name": "Transcribe user audio",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "664pCzbxJ2YDYmQp",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Webhook z-api').item.json.audio.audioUrl }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2896,
+        -96
+      ],
+      "id": "f5198735-c173-4bd8-963a-1c4447f13863",
+      "name": "Fetch user audio",
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Webhook z-api').item.json.text }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "object",
+                      "operation": "exists",
+                      "singleValue": true
+                    },
+                    "id": "65c6069c-ea5d-4d39-9908-1c210a360f7e"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "text"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "92a99859-4df1-40b5-bb6e-afebcaca2502",
+                    "leftValue": "={{ $('Webhook z-api').item.json.audio }}",
+                    "rightValue": "audio",
+                    "operator": {
+                      "type": "object",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "audio"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "146761e1-43c5-4a75-930e-621aae577132",
+                    "leftValue": "={{ $('Webhook z-api').item.json.image }}",
+                    "rightValue": "image",
+                    "operator": {
+                      "type": "object",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "image"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        2496,
+        -112
+      ],
+      "id": "36e62fb8-4bdf-4aa9-ba9c-c50d395caf92",
+      "name": "Types of message options"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "messages_logs",
+        "limit": 10,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "contact_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Add contact_id').item.json.contact_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        6512,
+        -112
+      ],
+      "id": "dca145f6-ad0e-433e-b7a8-30778088fc41",
+      "name": "Get last messages from user",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "GppJw5cVMGqEWFjb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        6192,
+        -112
+      ],
+      "id": "247efc34-053a-412d-a4e1-788eb14646d4",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        6720,
+        -112
+      ],
+      "id": "319e2d45-867d-4a56-9003-3eebb4fe2051",
+      "name": "Aggregate1"
+    },
+    {
+      "parameters": {
+        "jsCode": "return {data: $input.first().json.data.map((message) => {\n    return {direction: message.direction, text: message.text, transcription: message.transcription, image_description: message.image_description, time: message.created_at}; // hide sensitive info from the model\n})}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6928,
+        -112
+      ],
+      "id": "7b9ac7e9-7709-48e4-a1b2-d2ba4d16f302",
+      "name": "Get raw paylod from messages"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "34cea502-bc4e-4ebb-a891-f41a2c9c9fc5",
+              "leftValue": "={{ $('Validate the consistency of the model\\'s output').item.json.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        8624,
+        -112
+      ],
+      "id": "87831274-5aee-4818-805e-c9f142a66c3d",
+      "name": "verify result of output validation"
+    },
+    {
+      "parameters": {
+        "jsCode": "// NOME DO NÓ: Certifique-se de que o nome aqui dentro é EXATAMENTE igual ao nome do nó na tela\nconst nodeName = \"Max retries counter\"; \n\n// Obtém quantas vezes este nó já foi acionado nesta execução\n// Na primeira vez é 0, na segunda é 1, etc.\nconst currentRun = $node[nodeName].runIndex;\n\n// Seu limite de tentativas\nconst maxRetries = 2;\n\nif (currentRun >= maxRetries) {\n  // TRAVA DE SEGURANÇA: Para o fluxo imediatamente\n  throw new Error(`Loop interrompido: O agente falhou em corrigir o erro após ${maxRetries} tentativas.`);\n}\n\n// Se passou, prepara os dados para o Agente tentar de novo\nreturn {\n  json: {\n    ...$input.item.json, // Mantém os dados atuais\n    isRetry: true,       // Flag para seu prompt (opcional)\n    retryAttempt: currentRun + 1 // Apenas informativo\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8560,
+        256
+      ],
+      "id": "d8aa28bf-cf5d-49c1-abd4-583db184db97",
+      "name": "Max retries counter"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "4bc123c7-6731-4fcf-ae98-746f7eadebcf",
+              "leftValue": "={{ $('AI Agent').item.json.output.needs_clarification }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "5739b56c-1b19-4e13-9eaa-81f82eea211c",
+              "leftValue": "={{ $('AI Agent').item.json.output.needs_confirmation }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        9616,
+        -128
+      ],
+      "id": "0ed9be8a-0c07-4afb-93ff-83d234903b7f",
+      "name": "Need clarification or confirmation"
+    },
+    {
+      "parameters": {
+        "url": "={{ `https://api.z-api.io/instances/$vars.zapi-instance/token/$vars.zapi-token/send-text` }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "phone",
+              "value": "={{ $('Webhook z-api').item.json.phone }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.raw_info.user_facing_message }}"
+            },
+            {
+              "name": "delayTyping",
+              "value": "2"
+            },
+            {
+              "name": "delayMessage",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        11248,
+        -144
+      ],
+      "id": "211d0690-87d5-451b-9b19-a3c6c580f9e5",
+      "name": "Answer user",
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "0RebEH71hYxxAmhG",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('AI Agent').item.json.output.action }}",
+                    "rightValue": "create",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "86e9aea4-a80f-4493-ab9d-ac042997dd21"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "create"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "8d59f047-301f-410d-b048-597ae5abb5e5",
+                    "leftValue": "={{ $('AI Agent').item.json.output.action }}",
+                    "rightValue": "update",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "update"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "16797684-378b-485a-9ac9-d5b655b9c33c",
+                    "leftValue": "={{ $('AI Agent').item.json.output.action }}",
+                    "rightValue": "cancel",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "cancel"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "19d61d50-59de-4545-95e7-c82fee007158",
+                    "leftValue": "={{ $('AI Agent').item.json.output.action }}",
+                    "rightValue": "status",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "status"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "22c695da-6f07-4534-8113-0689cd248c1b",
+                    "leftValue": "={{ $('AI Agent').item.json.output.action }}",
+                    "rightValue": "unknown",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "unknown"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        10080,
+        336
+      ],
+      "id": "bae38aec-72ee-407b-affd-272b304bf8ce",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "94d82351-b22f-4234-a20a-58afd27a79c2",
+              "name": "title",
+              "value": "={{ $('AI Agent').item.json.output.event.title }}",
+              "type": "string"
+            },
+            {
+              "id": "d7464e55-5423-48cc-8526-0e57749ad365",
+              "name": "with person",
+              "value": "={{ $('AI Agent').item.json.output.event.with_person }}",
+              "type": "string"
+            },
+            {
+              "id": "f698ae1e-5dba-4a80-8c10-93b4540c1470",
+              "name": "start datetime",
+              "value": "={{ $('AI Agent').item.json.output.event.start_datetime }}",
+              "type": "string"
+            },
+            {
+              "id": "2897a8a8-3bb9-4cf9-9592-198e3150f3e5",
+              "name": "end datetime",
+              "value": "={{ $('AI Agent').item.json.output.event.end_datetime }}",
+              "type": "string"
+            },
+            {
+              "id": "43635f81-f895-4e32-ae9a-787a4f478c47",
+              "name": "duration minutes",
+              "value": "={{ $('AI Agent').item.json.output.event.duration_minutes }}",
+              "type": "string"
+            },
+            {
+              "id": "43e1cfb1-3079-4374-be1a-0ec9020c2273",
+              "name": "notes",
+              "value": "={{ $('AI Agent').item.json.output.event.notes }}",
+              "type": "string"
+            },
+            {
+              "id": "92b81863-d1fc-46da-841b-61d4bcba74f3",
+              "name": "calendar event id",
+              "value": "={{ $('AI Agent').item.json.output.target.calendar_event_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        9824,
+        96
+      ],
+      "id": "d6b71a61-1375-49f1-ab63-4045cf517d2f",
+      "name": "Get event info"
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "pedroandradegiroldo@gmail.com",
+          "mode": "list",
+          "cachedResultName": "pedroandradegiroldo@gmail.com"
+        },
+        "start": "={{ $('Get event info').item.json['start datetime'] }}",
+        "end": "={{ $('Get event info').item.json['end datetime'] }}",
+        "additionalFields": {
+          "description": "={{ `\"Notas\": ${$('Get event info').item.json.notes}\\nPessoas: ${$('Get event info').item.json['with person']}` }}",
+          "summary": "={{ $('Get event info').item.json.title }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        10304,
+        96
+      ],
+      "id": "42292dea-b785-4cfb-9d26-2ae54349ec2b",
+      "name": "Create event",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "LDfrRTpckdLMgyPG",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "value": "pedroandradegiroldo@gmail.com",
+          "mode": "list",
+          "cachedResultName": "pedroandradegiroldo@gmail.com"
+        },
+        "eventId": "={{ $('Get event info').item.json['calendar event id'] }}",
+        "updateFields": {
+          "description": "={{ `\"Notas\": ${$('Get event info').item.json.notes}\\nPessoas: ${$('Get event info').item.json['with person']}` }}",
+          "end": "={{ $('Get event info').item.json['end datetime'] }}",
+          "start": "={{ $('Get event info').item.json['start datetime'] }}",
+          "summary": "={{ $('Get event info').item.json.title }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        10304,
+        288
+      ],
+      "id": "82f10f1b-31a2-4f96-98d4-112c7c67abe8",
+      "name": "Update event",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "LDfrRTpckdLMgyPG",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "value": "pedroandradegiroldo@gmail.com",
+          "mode": "list",
+          "cachedResultName": "pedroandradegiroldo@gmail.com"
+        },
+        "eventId": "={{ $('Get event info').item.json['calendar event id'] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        10304,
+        448
+      ],
+      "id": "e41af33c-def0-400f-8a46-5f8844ee00cd",
+      "name": "Cancel event",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "LDfrRTpckdLMgyPG",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "#### Status and unknown doesn't need a Google calendar action because:\n- Status: The events info was previously passed to the model, so it's already able to answer the question\n- unknown: We just don't know what the user wants :)\n",
+        "height": 208,
+        "width": 304
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        9776,
+        592
+      ],
+      "id": "9f6c51a8-326c-46ac-8034-3ace801f4abe",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "tableId": "calendar_events",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "contact_id",
+              "fieldValue": "={{ $('Add contact_id').item.json.contact_id }}"
+            },
+            {
+              "fieldId": "calendar_event_id",
+              "fieldValue": "={{ $json.id }}"
+            },
+            {
+              "fieldId": "title",
+              "fieldValue": "={{ $json.summary }}"
+            },
+            {
+              "fieldId": "start_at",
+              "fieldValue": "={{ $json.start.dateTime }}"
+            },
+            {
+              "fieldId": "end_at",
+              "fieldValue": "={{ $json.end.dateTime }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "confirmed"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        10512,
+        96
+      ],
+      "id": "27f1e4b4-7a9e-4a50-9806-c553a94adf4a",
+      "name": "Add event to database",
+      "credentials": {
+        "supabaseApi": {
+          "id": "GppJw5cVMGqEWFjb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "calendar_events",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "calendar_event_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "title",
+              "fieldValue": "={{ $json.summary }}"
+            },
+            {
+              "fieldId": "start_at",
+              "fieldValue": "={{ $json.start.dateTime }}"
+            },
+            {
+              "fieldId": "end_at",
+              "fieldValue": "={{ $json.end.dateTime }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "=confirmed"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        10512,
+        288
+      ],
+      "id": "c141fc6a-a838-46de-bab3-6633f2d1e14f",
+      "name": "Update event on database",
+      "credentials": {
+        "supabaseApi": {
+          "id": "GppJw5cVMGqEWFjb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "calendar_events",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "calendar_event_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Get event info').item.json['calendar event id'] }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "cancelled"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        10512,
+        448
+      ],
+      "id": "3dc35fc5-bcd2-40cb-8778-13a00e2776f9",
+      "name": "Cancel event on database",
+      "credentials": {
+        "supabaseApi": {
+          "id": "GppJw5cVMGqEWFjb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "pedroandradegiroldo@gmail.com",
+          "mode": "list",
+          "cachedResultName": "pedroandradegiroldo@gmail.com"
+        },
+        "timeMax": "={{ $now.plus({ year: 1 }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        5792,
+        -112
+      ],
+      "id": "8aa2b6ef-f6b1-435f-ad31-e29b27bbaa80",
+      "name": "Get user events",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "LDfrRTpckdLMgyPG",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Webhook z-api').item.json.image.imageUrl }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2896,
+        112
+      ],
+      "id": "e548a5e0-3df8-454a-b382-98a8fb1fee62",
+      "name": "Fetch user image",
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "text": "=Role: Você é um assistente de extração de dados especializado em capturas de tela de conversas (WhatsApp/Telegram).\n\nTarefa: Analise a imagem e identifique compromissos.\n\n    Use a data atual (23/12/2025) como referência para termos como \"hoje\", \"amanhã\" ou dias da semana.\n\n    Se o horário de término não estiver explícito, deixe em branco ou estime 1 hora de duração (indicando que é uma estimativa).\n\n    Se a data não estiver explícita mas a mensagem for de \"hoje\", use a data de referência.\n\nExtraia:\n\n    Título: (ex: Dentista)\n\n    Data: (Formato DD/MM/AAAA)\n\n    Início: (Horário mencionado)\n\n    Término: (Se houver, ou \"Não informado\")\n\n    Participantes: (Apenas se houver terceiros mencionados além do dono do celular)\n\nSaída: Gere exclusivamente o texto de agendamento no formato: \"Agende o evento [Título] para o dia [Data], às [Horário de Início] (Término: [Horário de Término]). Dados extraídos de imagem.\"\n\nRegra de Exceção: Se absolutamente nenhum compromisso/evento for mencionado, responda: \"Não foi possível identificar um evento para agendamento.\"\n\n# Contexto Atual\n- Data e Hora atual: {{ $now.format('yyyy-MM-ddTHH:mm:ss') }} (America/Sao_Paulo)\n- Dia da semana: {{ $now.format('c') }} (1=Segunda, 7=Domingo)",
+        "inputType": "binary",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        3168,
+        112
+      ],
+      "id": "7a66b3c7-60c7-4975-98ed-12f1e01a05c4",
+      "name": "Analyze user image",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "664pCzbxJ2YDYmQp",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "messages_logs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "message_whatsapp_id",
+              "fieldValue": "={{ $('Webhook z-api').item.json.messageId }}"
+            },
+            {
+              "fieldId": "image_description",
+              "fieldValue": "={{ $json.content.parts[0].text }}"
+            },
+            {
+              "fieldId": "contact_id",
+              "fieldValue": "={{ $('Add contact_id').item.json.contact_id }}"
+            },
+            {
+              "fieldId": "raw_payload",
+              "fieldValue": "={{ $('Webhook z-api').item.json }}"
+            },
+            {
+              "fieldId": "type",
+              "fieldValue": "image"
+            },
+            {
+              "fieldId": "direction",
+              "fieldValue": "inbound"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3424,
+        112
+      ],
+      "id": "a9e1bdc8-46cf-404d-b48a-f1bc809f2636",
+      "name": "Add image description message to database",
+      "credentials": {
+        "supabaseApi": {
+          "id": "GppJw5cVMGqEWFjb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7597d09c-63ec-4554-9829-e75662dc0723",
+              "name": "contact_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2224,
+        -96
+      ],
+      "id": "58584691-fa71-465a-a5e2-5f5248f82867",
+      "name": "Add contact_id"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        4736,
+        -96
+      ],
+      "id": "c4f5eec5-7e22-4ab5-aed9-8fec5eecb19c",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bd62e099-8c1b-4448-86b7-4983c4cc6947",
+              "name": "user_message",
+              "value": "={{ $('Webhook z-api').item.json.text.message }}",
+              "type": "string"
+            },
+            {
+              "id": "40a04f19-e351-4a34-8a7f-e5eae5eb765d",
+              "name": "db_message_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3840,
+        -304
+      ],
+      "id": "7eeeff54-9f33-4acc-babd-f53be867af14",
+      "name": "set user message from text"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bd62e099-8c1b-4448-86b7-4983c4cc6947",
+              "name": "user_message",
+              "value": "=$('Transcribe user audio')?.item?.json?.content?.parts?.[0]?.text ",
+              "type": "string"
+            },
+            {
+              "id": "08ea2aa9-4893-4831-bc06-973c50825c8f",
+              "name": "db_message_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3840,
+        -96
+      ],
+      "id": "a71a0173-4174-4cbc-a9e9-7b129e15c7b7",
+      "name": "set user message from audio"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bd62e099-8c1b-4448-86b7-4983c4cc6947",
+              "name": "user_message",
+              "value": "={{ $('Analyze user image').item.json.content.parts[0].text }}",
+              "type": "string"
+            },
+            {
+              "id": "dd400ab6-8a39-4839-8f71-6dcbb91051a3",
+              "name": "db_message_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3840,
+        112
+      ],
+      "id": "ac6cd402-584e-424a-bfe3-c5cbd6335ca9",
+      "name": "set user message from image"
+    },
+    {
+      "parameters": {
+        "tableId": "messages_logs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "text",
+              "fieldValue": "={{ $('AI Agent').item.json.output.user_facing_message }}"
+            },
+            {
+              "fieldId": "direction",
+              "fieldValue": "outbound"
+            },
+            {
+              "fieldId": "raw_payload",
+              "fieldValue": "={{ $('AI Agent').item.json.output }}"
+            },
+            {
+              "fieldId": "message_whatsapp_id",
+              "fieldValue": "={{$json.first().json.messageId}}"
+            },
+            {
+              "fieldId": "contact_id",
+              "fieldValue": "={{ $('Add contact_id').item.json.contact_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        11600,
+        -144
+      ],
+      "id": "355ca34d-632c-495d-9db1-c40a78a5a5c9",
+      "name": "Add model answer to database",
+      "credentials": {
+        "supabaseApi": {
+          "id": "GppJw5cVMGqEWFjb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// tests output consistency\n// test if confidence matches need clarification\nconst confidence = $input?.first()?.json?.output?.confidence\nconst needsClarification = $input?.first()?.json?.output?.needs_clarification\n\nconst passed = {success: true};\nconst notPassed = {success: false};\nif (confidence < 0.75 && needsClarification === false) return notPassed;\nif (confidence >= 0.75 && needsClarification === true) return notPassed;\n\n// test if event info was generated\nconst eventInfo = $input?.first()?.json?.output?.event;\n\nif (eventInfo?.title == undefined) return notPassed;\nif (eventInfo?.start_datetime == undefined) return notPassed;\nif (eventInfo?.end_datetime == undefined) return notPassed;\n\nreturn passed;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8128,
+        -112
+      ],
+      "id": "d829649a-d7f4-433f-9e5a-4759a1d2ad9e",
+      "name": "Validate the consistency of the model's output"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "llm_runs",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Add attempt to llm run (to be updated later)').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "success",
+              "fieldValue": "false"
+            },
+            {
+              "fieldId": "raw_info",
+              "fieldValue": "={{ $('AI Agent').item.json.output }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        8352,
+        256
+      ],
+      "id": "72774f92-9e5b-4f49-8486-84753500bd30",
+      "name": "Update failed llm run on db",
+      "credentials": {
+        "supabaseApi": {
+          "id": "GppJw5cVMGqEWFjb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "llm_runs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "model",
+              "fieldValue": "Gemini 2.5 Flash"
+            },
+            {
+              "fieldId": "prompt_ version",
+              "fieldValue": "v1.0.0"
+            },
+            {
+              "fieldId": "success",
+              "fieldValue": "false"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('Merge').item.json.db_message_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        7344,
+        -112
+      ],
+      "id": "c12171ba-c3a8-4fd4-aaa7-f10e6c424f1e",
+      "name": "Add attempt to llm run (to be updated later)",
+      "credentials": {
+        "supabaseApi": {
+          "id": "GppJw5cVMGqEWFjb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "llm_runs",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Add attempt to llm run (to be updated later)').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "success",
+              "fieldValue": "true"
+            },
+            {
+              "fieldId": "raw_info",
+              "fieldValue": "={{ $('AI Agent').item.json.output }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        9120,
+        -128
+      ],
+      "id": "3b69c49d-9af0-443e-b156-b41ca4dd61b5",
+      "name": "Update successful llm run on db",
+      "credentials": {
+        "supabaseApi": {
+          "id": "GppJw5cVMGqEWFjb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "errorMessage": "Message already handled!"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        1504,
+        -288
+      ],
+      "id": "121eb27f-b9b0-46b6-be73-d51bcaae73ea",
+      "name": "Stop and Error (message already handled)"
+    },
+    {
+      "parameters": {
+        "tableId": "execution_logs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "execution_id",
+              "fieldValue": "={{ $execution.id }}"
+            },
+            {
+              "fieldId": "phone_number",
+              "fieldValue": "={{ $json.phone }}"
+            },
+            {
+              "fieldId": "raw_data",
+              "fieldValue": "={{ $execution }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        208,
+        -80
+      ],
+      "id": "76f490ef-99fc-4065-814e-eda4fb498741",
+      "name": "Add execution log",
+      "credentials": {
+        "supabaseApi": {
+          "id": "GppJw5cVMGqEWFjb",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Webhook z-api": [
+      {
+        "json": {
+          "isStatusReply": false,
+          "senderLid": "81896604192873@lid",
+          "connectedPhone": "554499999999",
+          "waitingMessage": false,
+          "isEdit": false,
+          "isGroup": false,
+          "isNewsletter": false,
+          "instanceId": "A20DA9C0183A2D35A260F53F5D2B9244",
+          "messageId": "A20DA9C0183fdsfdsfsbjdsA2D35A260F53F5D2B9244",
+          "phone": "5544999999999",
+          "fromMe": false,
+          "momment": 1632228638000,
+          "status": "RECEIVED",
+          "chatName": "name",
+          "senderPhoto": "https://",
+          "senderName": "name",
+          "participantPhone": null,
+          "participantLid": null,
+          "photo": "https://",
+          "broadcast": false,
+          "type": "ReceivedCallback",
+          "text": {
+            "message": "sim",
+            "descritpion": "(opcional) em caso da mensagem possuir uma descrição inserida pelo WhatsApp",
+            "title": "(opcional) em caso da mensagem possuir um título inserido pelo WhatsApp",
+            "url": "(opcional) caso a mensagem possua um link ligado a ela. Exemplo: mensagem de catálogo possui um botão 'Ver catálogo'",
+            "thumbnailUrl": "(opcional) caso a mensagem possua uma imagem de thumbnail ligada a ela. Exemplo: mensagem de convite de grupo possui a imagem do grupo"
+          }
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Verify if call is from z-api": {
+      "main": [
+        [
+          {
+            "node": "Decides if continue or return error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook z-api": {
+      "main": [
+        [
+          {
+            "node": "Add execution log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get message with same whatsapp message id on database": {
+      "main": [
+        [
+          {
+            "node": "Verify if that message was handled before",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify if that message was handled before": {
+      "main": [
+        [
+          {
+            "node": "Stop and Error (message already handled)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get sender contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decides if continue or return error": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook with ok",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get message with same whatsapp message id on database",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook with error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get sender contact": {
+      "main": [
+        [
+          {
+            "node": "Verify if contact exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create contact if it didn't exists": {
+      "main": [
+        [
+          {
+            "node": "Add contact_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify if contact exists": {
+      "main": [
+        [
+          {
+            "node": "Add contact_id",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create contact if it didn't exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add text message to database": {
+      "main": [
+        [
+          {
+            "node": "set user message from text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add audio message to database": {
+      "main": [
+        [
+          {
+            "node": "set user message from audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Validate the consistency of the model's output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Jailbreak Guardrails",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jailbreak Guardrails": {
+      "main": [
+        [
+          {
+            "node": "Get user events",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Jailbreak error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe user audio": {
+      "main": [
+        [
+          {
+            "node": "Add audio message to database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch user audio": {
+      "main": [
+        [
+          {
+            "node": "Transcribe user audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Types of message options": {
+      "main": [
+        [
+          {
+            "node": "Add text message to database",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fetch user audio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fetch user image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get last messages from user": {
+      "main": [
+        [
+          {
+            "node": "Aggregate1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Get last messages from user",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate1": {
+      "main": [
+        [
+          {
+            "node": "Get raw paylod from messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get raw paylod from messages": {
+      "main": [
+        [
+          {
+            "node": "Add attempt to llm run (to be updated later)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verify result of output validation": {
+      "main": [
+        [
+          {
+            "node": "Update successful llm run on db",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update failed llm run on db",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Max retries counter": {
+      "main": [
+        [
+          {
+            "node": "Add attempt to llm run (to be updated later)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Need clarification or confirmation": {
+      "main": [
+        [
+          {
+            "node": "Answer user",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get event info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Create event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cancel event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Answer user",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Answer user",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get event info": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create event": {
+      "main": [
+        [
+          {
+            "node": "Add event to database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update event": {
+      "main": [
+        [
+          {
+            "node": "Update event on database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancel event": {
+      "main": [
+        [
+          {
+            "node": "Cancel event on database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add event to database": {
+      "main": [
+        [
+          {
+            "node": "Answer user",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update event on database": {
+      "main": [
+        [
+          {
+            "node": "Answer user",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancel event on database": {
+      "main": [
+        [
+          {
+            "node": "Answer user",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get user events": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch user image": {
+      "main": [
+        [
+          {
+            "node": "Analyze user image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze user image": {
+      "main": [
+        [
+          {
+            "node": "Add image description message to database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add image description message to database": {
+      "main": [
+        [
+          {
+            "node": "set user message from image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add contact_id": {
+      "main": [
+        [
+          {
+            "node": "Types of message options",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Jailbreak Guardrails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set user message from text": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set user message from audio": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "set user message from image": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Answer user": {
+      "main": [
+        [
+          {
+            "node": "Add model answer to database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate the consistency of the model's output": {
+      "main": [
+        [
+          {
+            "node": "verify result of output validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update failed llm run on db": {
+      "main": [
+        [
+          {
+            "node": "Max retries counter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add attempt to llm run (to be updated later)": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update successful llm run on db": {
+      "main": [
+        [
+          {
+            "node": "Need clarification or confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add execution log": {
+      "main": [
+        [
+          {
+            "node": "Verify if call is from z-api",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timeSavedMode": "fixed",
+    "timezone": "America/Sao_Paulo",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "b5c08192-c749-4d60-b209-aac9f1a22578",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b0bbe658de53f56996cd3b1ca426a56af16ecc5862201c8f49f25696c4c177ad"
+  },
+  "id": "wGduHndyf5jyuHmA",
+  "tags": []
+}

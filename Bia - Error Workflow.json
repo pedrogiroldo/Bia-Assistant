@@ -1,0 +1,259 @@
+{
+  "name": "Bia - Error Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "34f01707-2263-450b-b32e-9f045678d8d1",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "tableId": "errors",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "source_node",
+              "fieldValue": "={{ $json.execution.lastNodeExecuted }}"
+            },
+            {
+              "fieldId": "code",
+              "fieldValue": "={{ $json.error?.code || $json.error?.status || $json?.execution?.error?.stack || \"UNKNOWN\" }}"
+            },
+            {
+              "fieldId": "message",
+              "fieldValue": "={{ $json.execution.error.message }}"
+            },
+            {
+              "fieldId": "raw",
+              "fieldValue": "={{ $json.execution }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        416,
+        0
+      ],
+      "id": "88897483-7ec8-4929-b8c0-41412c588d26",
+      "name": "Add error log",
+      "credentials": {
+        "supabaseApi": {
+          "id": "GppJw5cVMGqEWFjb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "execution_logs",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "execution_id",
+              "keyValue": "={{ $('Error Trigger').item.json.execution.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        624,
+        0
+      ],
+      "id": "01abdf68-651e-4958-a6b3-9cdd5484e008",
+      "name": "Get execution info",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "GppJw5cVMGqEWFjb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ `https://api.z-api.io/instances/$vars.zapi-instance/token/$vars.zapi-token/send-text` }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "phone",
+              "value": "={{ $('Get execution info').item.json.phone_number }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.raw_info.user_facing_message }}"
+            },
+            {
+              "name": "delayTyping",
+              "value": "2"
+            },
+            {
+              "name": "delayMessage",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        928,
+        0
+      ],
+      "id": "edd7035d-c903-4437-a4cc-235592fce613",
+      "name": "Answer user",
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "0RebEH71hYxxAmhG",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "messages_logs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "text",
+              "fieldValue": "={{ $('Edit Fields').item.json.message }}"
+            },
+            {
+              "fieldId": "direction",
+              "fieldValue": "outbound"
+            },
+            {
+              "fieldId": "raw_payload",
+              "fieldValue": "={{ $('Edit Fields').item.json.toJsonString() }}"
+            },
+            {
+              "fieldId": "message_whatsapp_id",
+              "fieldValue": "={{$json?.item?.json?.messageId || undefined}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1184,
+        0
+      ],
+      "id": "2a17b710-2645-4fb1-8da6-7a0a3480287b",
+      "name": "Add model answer to database",
+      "credentials": {
+        "supabaseApi": {
+          "id": "GppJw5cVMGqEWFjb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "832bb5da-607f-4bc6-8d09-1d71275b3a64",
+              "name": "message",
+              "value": "Puxa, tive um probleminha técnico por aqui agora. Você poderia tentar enviar sua mensagem novamente em alguns instantes? Estarei te esperando!",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "10bbbe79-07ef-401a-b1f4-d7acf2078b4e",
+      "name": "Edit Fields"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add error log": {
+      "main": [
+        [
+          {
+            "node": "Get execution info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get execution info": {
+      "main": [
+        [
+          {
+            "node": "Answer user",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer user": {
+      "main": [
+        [
+          {
+            "node": "Add model answer to database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Add error log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "6486e321-dd8c-418a-910a-d587ecbc29a0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b0bbe658de53f56996cd3b1ca426a56af16ecc5862201c8f49f25696c4c177ad"
+  },
+  "id": "YRlB7h5KPw7tL2Sk",
+  "tags": []
+}
